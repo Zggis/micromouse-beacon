@@ -17,10 +17,10 @@ RED OFF, GREEN ON. BEACON EXTIGUISHED
 #define OPTION 1  //PREPROCESSOR SWITCH
 
 #define BEACON_PIN 11
-#define IR_SENSOR_PIN 2
 #define BEACON_ON_LIGHT_RED_PIN 7
 #define BEACON_OFF_LIGHT_GREEN_PIN 5
 #define PULSE_WIDTH 1000  // 40 kHz = 25 us period; 25 us X 1000 = 25 ms
+bool FALLING_EDGE = 0;
 
 int n = 0;
 
@@ -123,7 +123,6 @@ bool CHECK_BEACON(void) {
 
 #if OPTION == 1
     /******************25 ms pulse, 40 kHz*****************************/
-
     while (n <= PULSE_WIDTH && LOCK == LOW) {  //generates approx 25 us square wave for 25 ms
       //locks out irpt
       PULSE = HIGH;
@@ -145,14 +144,6 @@ bool CHECK_BEACON(void) {
   }  //END IF LOCK
 }
 
-void IR_triggerLatch() {  //irpt every other event
-  if (PULSE == LOW) {
-    LOCK = LOW;
-    ///LATCH = LATCH_PREVIOUS ^ HIGH;
-    ///LATCH_PREVIOUS = LATCH;
-  }
-}
-
 void init_GPIO() {
   pinMode(BEACON_ON_LIGHT_RED_PIN, OUTPUT);
   pinMode(BEACON_OFF_LIGHT_GREEN_PIN, OUTPUT);
@@ -160,23 +151,37 @@ void init_GPIO() {
   DDRB = B00001000;
 }
 
+ISR(PCINT0_vect) {
+
+  if (!(PINB & B00000100) && FALLING_EDGE == 0) {
+    if (PULSE == LOW) {
+      LOCK = LOW;
+    }
+    FALLING_EDGE = 1;
+  }
+
+  if ((PINB & B00000100) && FALLING_EDGE == 1) {
+    FALLING_EDGE = 0;
+  }
+}
+
 // the setup function runs once when you press reset or power the board
 void setup() {
   Serial.begin(9600);
   init_GPIO();
-  attachInterrupt(digitalPinToInterrupt(IR_SENSOR_PIN), IR_triggerLatch, RISING);  //IR SENSOR NEG PULSE
+  PCICR |= B00000001;   //GRP 0
+  PCMSK0 |= B00000100;  //PIN D10
 }
 
 // the loop function runs over and over again forever
 void loop() {
 
 #if OPTION == 1
-  Serial.println(MOUSE_GOAL_1());  //'LOW' BEACON NOT DETECTED, 'HIGH' BEACON EXTINGUISHED
+  MOUSE_GOAL_1();
 #endif
 
 #if OPTION == 2
-  //MOUSE_GOAL_2();
-  Serial.println(MOUSE_GOAL_2());  // BEACON NOT DETECTED, APPROACHING DETECTED BEACON
+  MOUSE_GOAL_2();
 
 //BEACON EXTINGUISHED
 #endif
