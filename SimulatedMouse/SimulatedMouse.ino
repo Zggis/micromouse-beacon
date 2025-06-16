@@ -21,6 +21,7 @@ RED OFF, GREEN ON. BEACON EXTIGUISHED
 #define BEACON_OFF_LIGHT_GREEN_PIN 5
 #define PULSE_WIDTH 1000  // 40 kHz = 25 us period; 25 us X 1000 = 25 ms
 bool FALLING_EDGE = 0;
+bool RISING_EDGE = 1; //other globals below already in Mouse Sim code.
 
 int n = 0;
 
@@ -151,17 +152,15 @@ void init_GPIO() {
   DDRB = B00001000;
 }
 
-ISR(PCINT0_vect) {
-
-  if (!(PINB & B00000100) && FALLING_EDGE == 0) {
-    if (PULSE == LOW) {
-      LOCK = LOW;
-    }
-    FALLING_EDGE = 1;
+ISR(PCINT0_vect){
+  if((PINB & B00000100) && RISING_EDGE ){
+   if(PULSE==LOW){
+    LOCK = LOW;}
+    RISING_EDGE = 0;
   }
 
-  if ((PINB & B00000100) && FALLING_EDGE == 1) {
-    FALLING_EDGE = 0;
+  if(!(PINB & B00000100) && !RISING_EDGE ){
+    RISING_EDGE = 1;
   }
 }
 
