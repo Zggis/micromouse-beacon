@@ -52,7 +52,7 @@ void IR_triggerLatch_LockOn() {
 void setup() {
   Serial.begin(9600);
   myservo.attach(SERVO_PIN);  // attaches the servo on pin 10 to the servo object
-  myservo.write(90);
+  myservo.write(83);
   strip.begin();  // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();   // Turn OFF all pixels ASAP
   strip.setBrightness(BRIGHTNESS);
