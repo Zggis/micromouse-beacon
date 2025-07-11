@@ -1,3 +1,5 @@
+#include <Wire.h>
+
 //MOUSE
 /*
 MOUSE CODE
@@ -14,14 +16,12 @@ QUENCH BEACON.
 RED OFF, GREEN ON. BEACON EXTIGUISHED
 */
 
-#define OPTION 1  //PREPROCESSOR SWITCH
-
 #define BEACON_PIN 11
 #define BEACON_ON_LIGHT_RED_PIN 7
 #define BEACON_OFF_LIGHT_GREEN_PIN 5
 #define PULSE_WIDTH 1000  // 40 kHz = 25 us period; 25 us X 1000 = 25 ms
 bool FALLING_EDGE = 0;
-bool RISING_EDGE = 1; //other globals below already in Mouse Sim code.
+bool RISING_EDGE = 1;  //other globals below already in Mouse Sim code.
 
 int n = 0;
 
@@ -37,78 +37,7 @@ bool BEACON_OFF = LOW;  //BEACON IS ON
 
 bool MOUSE_1_STATE = LOW;  //'LOW' BEFORE BEACON DETECTED, 'HIGH' AFTER BEACON DETECTED
 
-short int MOUSE_2_STATE = 0;  // BEFORE BEACON DETECTED, DURING APPROACH TO BEACON,
-// AFTER BEACON EXTINGUISHED
-short int MOUSE_2_STATE_PREV = 0;
-
-#if OPTION == 2
-
-short int MOUSE_GOAL_2(void) {
-  bool temp = CHECK_BEACON();
-  //Serial.print("MOUSE 2 STATE PREV = ");
-  //Serial.println(MOUSE_2_STATE_PREV);
-
-  if (temp == HIGH) {
-    m = m + 1;
-    m = m % 10000;
-    Serial.print("m =");
-    Serial.println(m);
-    if (m == highZONE01) {
-      ZONE01 = HIGH;
-    }
-    Serial.println("GOAL FOUND");
-    digitalWrite(BEACON_ON_LIGHT_RED, HIGH);
-    MOUSE_2_STATE = 1;
-    MOUSE_2_STATE_PREV = MOUSE_2_STATE;
-    delay(1000);
-    return MOUSE_2_STATE;
-  }
-  if (temp == LOW && MOUSE_2_STATE_PREV == 0) {
-    Serial.println("MOUSE SEARCHING");
-    digitalWrite(BEACON_ON_LIGHT_RED, LOW);
-    digitalWrite(BEACON_OFF_LIGHT_GREEN, LOW);
-    MOUSE_2_STATE = 0;
-    delay(1000);
-    return MOUSE_2_STATE;
-  }
-
-  if (temp == LOW && MOUSE_2_STATE_PREV == 1) {
-    if (ZONE01 = HIGH) {
-      Serial.println("GOAL TRIGGERED");
-      digitalWrite(BEACON_ON_LIGHT_RED, LOW);
-      digitalWrite(BEACON_OFF_LIGHT_GREEN, HIGH);
-      MOUSE_2_STATE = 2;
-      return MOUSE_2_STATE;
-    }
-    delay(2000);
-    return MOUSE_2_STATE;
-  }
-  // delay(1000); // necessary delay for synchronization with beacon
-  // return MOUSE_2_STATE;
-}
-
-#endif
-
-#if OPTION == 1
-
-bool MOUSE_GOAL_1(void) {
-  //Serial.println(CHECK_BEACON());
-  //Serial.print("MOUSE_STATE = ");
-  //Serial.println(MOUSE_STATE);
-
-  if (CHECK_BEACON() == HIGH && BEACON_OFF == LOW) {
-    BEACON_OFF = HIGH;
-  }
-  if (BEACON_OFF == HIGH && MOUSE_1_STATE == LOW) {
-    //Serial.print("BEACON_OFF = ");
-    //Serial.println(BEACON_OFF);
-    digitalWrite(BEACON_OFF_LIGHT_GREEN_PIN, HIGH);
-    MOUSE_1_STATE = HIGH;
-  }
-  return MOUSE_1_STATE;
-}
-
-#endif
+bool BEACON_SEEN = LOW;
 
 bool CHECK_BEACON(void) {
   digitalWrite(BEACON_ON_LIGHT_RED_PIN, LOW);
@@ -121,8 +50,8 @@ bool CHECK_BEACON(void) {
 
   if (LOCK == LOW) {  //
     digitalWrite(BEACON_ON_LIGHT_RED_PIN, HIGH);
+    BEACON_SEEN = HIGH;
 
-#if OPTION == 1
     /******************25 ms pulse, 40 kHz*****************************/
     while (n <= PULSE_WIDTH && LOCK == LOW) {  //generates approx 25 us square wave for 25 ms
       //locks out irpt
@@ -138,7 +67,6 @@ bool CHECK_BEACON(void) {
     PULSE = LOW;
     /***************************end 25 ms pulse*****************/
 
-#endif
     LOCK = HIGH;
 
     return HIGH;
@@ -152,14 +80,15 @@ void init_GPIO() {
   DDRB = B00001000;
 }
 
-ISR(PCINT0_vect){
-  if((PINB & B00000100) && RISING_EDGE ){
-   if(PULSE==LOW){
-    LOCK = LOW;}
+ISR(PCINT0_vect) {
+  if ((PINB & B00000100) && RISING_EDGE) {
+    if (PULSE == LOW) {
+      LOCK = LOW;
+    }
     RISING_EDGE = 0;
   }
 
-  if(!(PINB & B00000100) && !RISING_EDGE ){
+  if (!(PINB & B00000100) && !RISING_EDGE) {
     RISING_EDGE = 1;
   }
 }
@@ -167,6 +96,7 @@ ISR(PCINT0_vect){
 // the setup function runs once when you press reset or power the board
 void setup() {
   Serial.begin(9600);
+  Wire.begin();
   init_GPIO();
   PCICR |= B00000001;   //GRP 0
   PCMSK0 |= B00000100;  //PIN D10
@@ -175,14 +105,33 @@ void setup() {
 // the loop function runs over and over again forever
 void loop() {
 
-#if OPTION == 1
-  MOUSE_GOAL_1();
-#endif
+  if (CHECK_BEACON() == HIGH && BEACON_OFF == LOW) {
+    BEACON_OFF = HIGH;
+  }
+  if (BEACON_OFF == HIGH && MOUSE_1_STATE == LOW) {
+    //Serial.print("BEACON_OFF = ");
+    //Serial.println(BEACON_OFF);
+    digitalWrite(BEACON_OFF_LIGHT_GREEN_PIN, HIGH);
+    MOUSE_1_STATE = HIGH;
+  }
 
-#if OPTION == 2
-  MOUSE_GOAL_2();
+/*
 
-//BEACON EXTINGUISHED
-#endif
+  if (MOUSE_1_STATE == HIGH) {
+    //Beacon has been extinnguished
+    Wire.beginTransmission(9);  // transmit to device #9
+    Wire.write(2);              // sends x
+    Wire.endTransmission();     // stop transmitting
+  } else if (BEACON_SEEN == HIGH) {
+    //Beacons has been detected
+    Wire.beginTransmission(1);  // transmit to device #9
+    Wire.write(x);              // sends x
+    Wire.endTransmission();     // stop transmitting
+  } else {
+    Wire.beginTransmission(9);  // transmit to device #9
+    Wire.write(0);              // sends x
+    Wire.endTransmission();     // stop transmitting
+  }
+  */
 
 }  //END LOOP
