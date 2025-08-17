@@ -33,19 +33,43 @@ unsigned int n = 0;
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 Servo myservo;  // create servo object to control a servo
 
+volatile unsigned long pulseStartTime;
+volatile unsigned long pulseTime = 0;
+
+volatile unsigned long pulseStartTimePS;
+volatile unsigned long pulseTimePS = 0;
+
 bool LATCH = LOW;
 bool PULSE = LOW;
 bool TRIGGER_TYPE = 0;  //0 = proximity, 1 = IR
 
-void triggerLatch_LockOn() {
-  LATCH = HIGH;
+void triggerLatch_Rising() {
+  pulseStartTimePS = millis();
+  //DO NOT SWITCH LATCH BACK SINCE BEACON ONLY TURNED OFF ONCE!!!
+  attachInterrupt(digitalPinToInterrupt(PROX_SENSOR_PIN), triggerLatch_Falling, FALLING);
 }
 
-void IR_triggerLatch_LockOn() {
-  if (PULSE == LOW) {
+void triggerLatch_Falling() {  //IN THIS VERSION THE BEACON IS TURNED OFF AT FALLING NOT RISING
+  pulseTimePS = millis() - pulseStartTimePS;
+  if (pulseTimePS > 4000 && PULSE == LOW) {
     LATCH = HIGH;
-    TRIGGER_TYPE = 1;
   }
+  attachInterrupt(digitalPinToInterrupt(PROX_SENSOR_PIN), triggerLatch_Rising, RISING);
+}
+
+void IR_triggerLatch_Rising() {  //IN THIS VERSION THE BEACON IS TURNED OFF AT RISING NOT FALLING
+  pulseTime = millis() - pulseStartTime;
+  if (pulseTime > 23 && pulseTime < 27 && PULSE == LOW) {
+    LATCH = HIGH;
+    TRIGGER_TYPE=1;
+  }
+  attachInterrupt(digitalPinToInterrupt(IR_SENSOR_PIN), IR_triggerLatch_Falling, FALLING);
+}
+
+void IR_triggerLatch_Falling() {
+  pulseStartTime = millis();
+  //DO NOT SWITCH LATCH BACK TO LOW SINCE BEACON ONLY TURNED OFF ONCE!!!
+  attachInterrupt(digitalPinToInterrupt(IR_SENSOR_PIN), IR_triggerLatch_Rising, RISING);
 }
 
 // the setup function runs once when you press reset or power the board
@@ -57,9 +81,11 @@ void setup() {
   strip.show();   // Turn OFF all pixels ASAP
   strip.setBrightness(BRIGHTNESS);
   pinMode(BEACON_PIN, OUTPUT);
-  pinMode(PROX_SENSOR_PIN, INPUT);                                                         //INPUT is default but this is a reminder
-  attachInterrupt(digitalPinToInterrupt(PROX_SENSOR_PIN), triggerLatch_LockOn, RISING);    //PROX SENSOR POS PULSE
-  attachInterrupt(digitalPinToInterrupt(IR_SENSOR_PIN), IR_triggerLatch_LockOn, FALLING);  //IR SENSOR NEG PULSE
+  //DDRB = B00001000;
+  pinMode(PROX_SENSOR_PIN, INPUT);  //INPUT is default but this is a reminder
+
+  attachInterrupt(digitalPinToInterrupt(PROX_SENSOR_PIN), triggerLatch_Rising, RISING);     //PROX SENSOR POS PULSE
+  attachInterrupt(digitalPinToInterrupt(IR_SENSOR_PIN), IR_triggerLatch_Falling, FALLING);  //IR SENSOR NEG PULSE
 }
 
 void loop() {
@@ -77,7 +103,7 @@ void loop() {
     }
     PULSE = LOW;
     n = n / PULSE_WIDTH;
-    delay(500);
+    delay(50);
   }
   colorWipe(strip.Color(0, 255, 0), 100);  // Green
   myservo.write(0);
