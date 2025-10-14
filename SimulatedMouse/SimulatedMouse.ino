@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <digitalWriteFast.h>
 
 //MOUSE
 /*
@@ -54,8 +55,8 @@ void loop() {
     BEACON_OFF = HIGH;
   }
   if (BEACON_OFF == HIGH && MOUSE_1_STATE == LOW) {
-    //Serial.print("BEACON_OFF = ");
-    //Serial.println(BEACON_OFF);
+    Serial.print("BEACON_OFF = ");
+    Serial.println(BEACON_OFF);
     digitalWrite(BEACON_OFF_LIGHT_GREEN_PIN, HIGH);
     MOUSE_1_STATE = HIGH;
     //Send beacon detected info to mouse
@@ -77,9 +78,9 @@ bool CHECK_BEACON(void) {
       //locks out irpt
       PULSE = HIGH;
       n = n + 1;
-      digitalWrite(BEACON_PIN, HIGH);
+      digitalWriteFast(BEACON_PIN, HIGH);
       delayMicroseconds(12);
-      digitalWrite(BEACON_PIN, LOW);
+      digitalWriteFast(BEACON_PIN, LOW);
       delayMicroseconds(12);
     }
     n = n / PULSE_WIDTH;
