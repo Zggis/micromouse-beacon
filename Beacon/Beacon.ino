@@ -1,6 +1,7 @@
 //BEACON CODE
 #include <Adafruit_NeoPixel.h>
 #include <Servo.h>
+#include <digitalWriteFast.h>
 #define LED_PIN 6
 #define LED_COUNT 8
 #define BRIGHTNESS 50  // Set BRIGHTNESS to about 1/5 (max = 255)
@@ -59,6 +60,7 @@ void triggerLatch_Falling() {  //IN THIS VERSION THE BEACON IS TURNED OFF AT FAL
 
 void IR_triggerLatch_Rising() {  //IN THIS VERSION THE BEACON IS TURNED OFF AT RISING NOT FALLING
   pulseTime = millis() - pulseStartTime;
+  //Serial.println(pulseTime);
   if (pulseTime > 23 && pulseTime < 27 && PULSE == LOW) {
     LATCH = HIGH;
     TRIGGER_TYPE=1;
@@ -89,16 +91,18 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("BEACON OPERATIMG");
+  Serial.println("BEACON OPERATING");
   colorWipe(strip.Color(255, 0, 0), 100);  // Red
   strip.show();
   while (LATCH == LOW) {
     while (n <= PULSE_WIDTH && LATCH == LOW) {  //generates approx 25 us square wave
       PULSE = HIGH;
       n = n + 1;
-      PORTB |= B00001000;  //pin 11 hi
+      digitalWriteFast(BEACON_PIN, HIGH);
+      //PORTB |= B00001000;  //pin 11 hi
       delayMicroseconds(12);
-      PORTB &= B11110111;  //pin 11 lo
+      digitalWriteFast(BEACON_PIN, LOW);
+      //PORTB &= B11110111;  //pin 11 lo
       delayMicroseconds(12);
     }
     PULSE = LOW;
